@@ -43,7 +43,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
           # Pull latest changes with rebase to keep commit history clean
-          git pull origin main --rebase
+          git pull origin main --rebase --autostash
           git add adsh_db.json high_water_mark.txt feed.xml
           
           # Accurately check only the staging area
