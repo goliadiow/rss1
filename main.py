@@ -11,7 +11,7 @@ import google.generativeai as genai
 
 # 1. Initialize API Keys and SEC Headers
 # CRITICAL: Replace with your actual name and email to comply with SEC rules
-SEC_HEADERS = {'User-Agent': 'JaneDoe janedoe@example.com'}
+SEC_HEADERS = {'User-Agent': 'ErichRiesenberg itserich@gmail.com'}
 
 api_key = os.environ.get("GEMINI_API_KEY")
 genai.configure(api_key=api_key)
