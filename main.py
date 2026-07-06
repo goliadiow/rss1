@@ -11,7 +11,7 @@ import google.generativeai as genai
 
 # 1. Initialize API Keys and SEC Headers
 # CRITICAL: Replace with your actual name and email to comply with SEC rules
-SEC_HEADERS = {'ErichRiesenberg': 'itserich@gmail.com'}
+SEC_HEADERS = {'User-Agent': 'JaneDoe janedoe@example.com'}
 
 api_key = os.environ.get("GEMINI_API_KEY")
 genai.configure(api_key=api_key)
@@ -185,3 +185,30 @@ for stored_adsh, entry_data in final_db.items():
     instances_html = ""
     stored_instances = entry_data.get("keyword_instances", [])
     if stored_instances:
+        instances_html += "<br><br><b>Keyword Excerpts:</b><ul>"
+        for instance in stored_instances:
+            instances_html += f"<li>... {instance} ...</li>"
+        instances_html += "</ul>"
+        
+    formatted_output = f"""
+    <b>Company Name:</b> {html.escape(entry_data['company_name'])}<br>
+    <b>Filing Type:</b> {FORM_TYPES}<br>
+    <b>Filing Date:</b> {entry_data.get('file_date', 'Unknown')}<br><br>
+    <b>AI Summary:</b><br>{entry_data['summary']}
+    {instances_html}
+    """
+    
+    fe.description(entry_data['summary'])
+    fe.content(content=formatted_output, type='html')
+
+# 8. Export the final Database and XML files
+with open(DATABASE_FILE, 'w', encoding='utf-8') as f:
+    json.dump(final_db, f, indent=4)
+
+try:
+    fg.rss_file('feed.xml')
+    if all_hits and (reached_marker or not high_water_mark or force_marker_update):
+        with open(MARKER_FILE, 'w', encoding='utf-8') as f:
+            f.write(new_high_water_mark)
+except Exception as e:
+    print(f"Failed to write outputs: {e}")
