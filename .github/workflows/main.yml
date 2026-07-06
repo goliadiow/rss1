@@ -7,9 +7,10 @@ concurrency:
 
 on:
   schedule:
-    # Runs every 15 minutes, Monday-Friday, roughly matching SEC business hours (UTC conversions)
-    - cron: '*/15 10-23 * * 1-5'
-    - cron: '*/15 0-2 * * 2-6'
+    # Runs at minutes 22 and 44 of every hour, Monday-Friday.
+    # This avoids the "top of the hour" congestion spike.
+    - cron: '22,44 10-23 * * 1-5'
+    - cron: '22,44 0-2 * * 2-6'
   workflow_dispatch:
 
 jobs:
