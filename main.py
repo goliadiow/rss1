@@ -159,6 +159,7 @@ if all_hits:
                     "url": f"https://www.sec.gov/Archives/edgar/data/{cik}/{adsh_no_dashes}/{adsh}-index.htm",
                     "summary": summary_text,
                     "file_date": file_date_str,
+                    "file_time": file_time_str,
                     "keyword_instances": keyword_instances
                 }
             except Exception as e:
@@ -194,7 +195,8 @@ for stored_adsh, entry_data in final_db.items():
     formatted_output = f"""
     <b>Company Name:</b> {html.escape(entry_data['company_name'])}<br>
     <b>Filing Type:</b> {FORM_TYPES}<br>
-    <b>Filing Date:</b> {entry_data.get('file_date', 'Unknown')}<br><br>
+    <b>Filing Date:</b> {entry_data.get('file_date', 'Unknown')}<br>
+    <b>Filing Time:</b> {entry_data.get('file_time', 'Unknown')}<br><br>
     <b>AI Summary:</b><br>{entry_data['summary']}
     {instances_html}
     """
