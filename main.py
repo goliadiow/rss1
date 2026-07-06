@@ -101,7 +101,8 @@ if all_hits:
         cik = source.get('ciks', [''])[0]
         adsh = source.get('adsh', '')
         company_name = source.get('display_names', ['Unknown Company'])[0]
-        file_date_str = source.get('file_date', '') 
+        file_date_str = source.get('file_date', '')
+        file_time_str = source.get('file_datetime', 'Unknown Time')
         
         hit_id = hit.get('_id', '')
         exact_filename = hit_id.split(':')[-1] if ':' in hit_id else None
