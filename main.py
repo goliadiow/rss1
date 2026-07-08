@@ -3,22 +3,29 @@ import re
 import json
 import time
 import html
+import signal
 from datetime import datetime, timezone
 import requests
 from bs4 import BeautifulSoup
 from feedgen.feed import FeedGenerator
-import google.generativeai as genai
+from google import genai
 
 # 1. Initialize API Keys and SEC Headers
 # CRITICAL: Replace with your actual name and email to comply with SEC rules
 SEC_HEADERS = {'User-Agent': 'ErichRiesenberg itserich@gmail.com'}
-
 api_key = os.environ.get("GEMINI_API_KEY")
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel('gemini-2.5-flash')
+
+# Migrate to the new google-genai SDK
+client = genai.Client(api_key=api_key)
 
 SEARCH_TERMS = '"merge" OR "tender" OR "acquire" OR "liquidate"'
 FORM_TYPES = '8-K,6-K'
+
+# Timeout handler for the AI generation
+def timeout_handler(signum, frame):
+    raise TimeoutError("AI generation timed out")
+
+signal.signal(signal.SIGALRM, timeout_handler)
 
 # 2. Read Local Memory Files
 DATABASE_FILE = 'adsh_db.json'
@@ -48,39 +55,41 @@ all_hits = []
 current_from = 0
 page_size = 100
 fetching = True
-reached_marker = False 
-force_marker_update = False 
+reached_marker = False
+force_marker_update = False
 
 while fetching:
     if current_from > 5000:
         print("Pagination limit reached. Stopping search and forcing a baseline reset.")
-        force_marker_update = True 
+        force_marker_update = True
         break
-        
+
     url = f'https://efts.sec.gov/LATEST/search-index?q="{SEARCH_TERMS}"&forms={FORM_TYPES}&from={current_from}&size={page_size}&sort=desc'
+    
     try:
         response = requests.get(url, headers=SEC_HEADERS, timeout=15)
         response.raise_for_status()
         data = response.json()
         hits = data.get('hits', {}).get('hits', [])
-
+        
         if not hits:
             break
-
+            
         for hit in hits:
             adsh = hit['_source'].get('adsh', '')
             if adsh == high_water_mark:
                 fetching = False
-                reached_marker = True 
+                reached_marker = True
                 break
             all_hits.append(hit)
             
         if not high_water_mark:
             print("Initial cold start detected. Terminating pagination to establish baseline.")
             fetching = False
-
-        current_from += len(hits) 
-        time.sleep(0.15) 
+            
+        current_from += len(hits)
+        time.sleep(0.15)
+        
     except Exception as e:
         print(f"Network error fetching SEC hits: {e}")
         break
@@ -106,7 +115,7 @@ if all_hits:
         
         hit_id = hit.get('_id', '')
         exact_filename = hit_id.split(':')[-1] if ':' in hit_id else None
-
+        
         if adsh not in adsh_db:
             adsh_no_dashes = adsh.replace('-', '')
             
@@ -114,46 +123,56 @@ if all_hits:
                 continue
                 
             doc_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{adsh_no_dashes}/{exact_filename}"
+            
             try:
                 # Increase sleep to 6 seconds to respect the ~10 RPM Free Tier Limit
-                time.sleep(8) 
+                time.sleep(8)
                 doc_req = requests.get(doc_url, headers=SEC_HEADERS, timeout=10)
                 soup = BeautifulSoup(doc_req.text, 'html.parser')
                 clean_text = soup.get_text(separator=' ', strip=True)
-
+                
                 matches = list(re.finditer(re.escape(SEARCH_TERMS), clean_text, re.IGNORECASE))
                 if not matches:
                     continue
-
+                    
                 first_match_idx = matches[0].start()
                 start_idx = max(0, first_match_idx - 1000)
                 end_idx = min(len(clean_text), first_match_idx + 1500)
                 context_chunk = clean_text[start_idx:end_idx]
-
+                
                 prompt = f"Summarize the purpose of this SEC filing related to '{SEARCH_TERMS}' for {company_name} based on the following contextual text excerpt: {context_chunk}. Keep it strictly to 2 sentences."
                 
                 try:
-                    ai_response = model.generate_content(prompt)
+                    # Enforce a 30-second timeout on the AI generation to prevent pipeline hangs
+                    signal.alarm(30)
+                    ai_response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=prompt
+                    )
                     try:
                         summary_text = ai_response.text
                     except ValueError:
                         summary_text = "AI summary unavailable (Content flagged by API safety filters). Please read the source document."
+                except TimeoutError:
+                    print(f"AI Generation timed out for {adsh}. Skipping to prevent pipeline hang.")
+                    summary_text = "AI summary failed (timeout). Keyword matches are provided below."
                 except Exception as ai_err:
                     print(f"AI Generation failed for {adsh}: {ai_err}")
                     summary_text = "AI summary temporarily unavailable due to network or quota limits. Keyword matches are provided below."
+                finally:
+                    # Disable the alarm regardless of success or failure
+                    signal.alarm(0)
 
                 keyword_instances = []
                 for match in matches[:10]:
                     start_char = max(0, match.start() - 300)
                     end_char = min(len(clean_text), match.end() + 300)
                     raw_snippet = clean_text[start_char:end_char]
-                    
                     safe_snippet = html.escape(raw_snippet)
                     matched_word_safe = html.escape(match.group())
                     highlighted_snippet = safe_snippet.replace(matched_word_safe, f"<b>{matched_word_safe}</b>")
-                    
                     keyword_instances.append(highlighted_snippet.strip())
-
+                    
                 new_entries[adsh] = {
                     "company_name": company_name,
                     "url": f"https://www.sec.gov/Archives/edgar/data/{cik}/{adsh_no_dashes}/{adsh}-index.htm",
@@ -162,6 +181,7 @@ if all_hits:
                     "file_time": file_time_str,
                     "keyword_instances": keyword_instances
                 }
+                
             except Exception as e:
                 print(f"Error processing {adsh} at {doc_url}: {e}")
                 continue
