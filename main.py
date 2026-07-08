@@ -17,8 +17,8 @@ api_key = os.environ.get("GEMINI_API_KEY")
 genai.configure(api_key=api_key)
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-SEARCH_TERMS = 'company' 
-FORM_TYPES = '8-K'
+SEARCH_TERMS = '"merge" OR "tender" OR "acquire" OR "liquidate"'
+FORM_TYPES = '8-K,6-K'
 
 # 2. Read Local Memory Files
 DATABASE_FILE = 'adsh_db.json'
