@@ -9,8 +9,8 @@ on:
   schedule:
     # Runs at minutes 22 and 44 of every hour, Monday-Friday.
     # This avoids the "top of the hour" congestion spike.
-    - cron: '22,44 10-23 * * 1-5'
-    - cron: '22,44 0-2 * * 2-6'
+    - cron: '17 10-23 * * 1-5'
+    - cron: '17 0-2 * * 2-6'
   workflow_dispatch:
 
 jobs:
