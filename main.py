@@ -116,7 +116,7 @@ if all_hits:
             doc_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{adsh_no_dashes}/{exact_filename}"
             try:
                 # Increase sleep to 6 seconds to respect the ~10 RPM Free Tier Limit
-                time.sleep(6) 
+                time.sleep(8) 
                 doc_req = requests.get(doc_url, headers=SEC_HEADERS, timeout=10)
                 soup = BeautifulSoup(doc_req.text, 'html.parser')
                 clean_text = soup.get_text(separator=' ', strip=True)
