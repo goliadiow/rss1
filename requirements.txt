@@ -1,4 +1,4 @@
 requests # http library for python
 feedgen # produce web feeds atom and rss
-google-generativeai # google ai
+google-genai # google ai
 beautifulsoup4 # Python library for pulling data out of HTML and XML files, to strip away all the hidden formatting code and extract pure English text.
